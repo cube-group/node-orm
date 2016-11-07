@@ -90,7 +90,7 @@ SQL:select * from list order by userid asc,username desc;
 DB.model('list').group('userid').select(callback);
 SQL:select * from list group by userid;
 
-DB.model('list').group(['userid','username'])->select(callback);
+DB.model('list').group(['userid','username']).select(callback);
 SQL:select * from list group by userid,username;
 ```
 * limit
