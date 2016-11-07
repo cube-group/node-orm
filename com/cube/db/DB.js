@@ -191,8 +191,6 @@ function DBModel(tableName) {
      */
     var _limit = '';
 
-    console.log(tableName);
-
     /**
      * the orm action as the task.
      *
@@ -233,12 +231,12 @@ function DBModel(tableName) {
      * @param $options
      * @return $this
      */
-    this.order = function ($options) {
-        if ($options) {
-            if ($options instanceof Array) {
-                _order = $options.join(',');
+    this.order = function (options) {
+        if (options) {
+            if (options instanceof Array) {
+                _order = options.join(',');
             } else {
-                _order = $options;
+                _order = options;
             }
         }
         return this;
@@ -346,13 +344,25 @@ function DBModel(tableName) {
      * @param null $options
      * @return array
      */
-    this.select = function (options, callback) {
+    this.select = function () {
+        var callback = null;
+        var options = null;
+
+        if (arguments.length == 1) {
+            callback = arguments[0];
+        } else if (arguments.length == 2) {
+            callback = arguments[1];
+            options = arguments[0];
+        } else {
+            throw new Error('select parameters error');
+        }
+
         var sql = 'SELECT ';
         if (options) {
             if (options instanceof Array) {
                 sql += options.join(',');
             } else {
-                sql += $options;
+                sql += options;
             }
         } else {
             sql += '*';
@@ -365,10 +375,10 @@ function DBModel(tableName) {
             sql += ' GROUP BY ' + _group;
         }
         if (_order) {
-            sql += ' ORDER BY ' + _group;
+            sql += ' ORDER BY ' + _order;
         }
         if (_limit) {
-            sql += ' LIMIT ' + _group;
+            sql += ' LIMIT ' + _limit;
         }
         sql += ';';
         execConnectedQuery(sql, _task, callback);
@@ -386,15 +396,14 @@ function DBModel(tableName) {
     this.update = function (options, callback) {
         if (options) {
             var sql = 'UPDATE ' + tableName + ' SET ';
-            if (options instanceof Array) {
+            if (options instanceof Object) {
                 var sets = [];
                 for (var key in options) {
                     sets.push(key + '=' + options[key]);
                 }
                 sql += sets.join(',');
-            }
-            else {
-                return false;
+            } else {
+                sql += options;
             }
             if (_where) {
                 sql += ' WHERE ' + _where;
@@ -447,8 +456,8 @@ function DBModel(tableName) {
             sql += ' (' + columns.join(',') + ')';
 
             if (_where) {
-                var unique_key = explode('=', _where)[0];
-                sql += ' SELECT (' + values.join(',') + ') FROM DUAL WHERE NOT EXISTS(SELECT ';
+                var unique_key = _where.split('=')[0];
+                sql += ' SELECT ' + values.join(',') + ' FROM DUAL WHERE NOT EXISTS(SELECT ';
                 sql += unique_key + ' FROM ' + tableName + ' WHERE ' + _where + ')';
             } else {
                 sql += ' VALUES (' + values.join(',') + ')';
@@ -509,5 +518,6 @@ function log(value) {
         var date = new Date().toUTCString();
         value = '[' + date + '] ' + value + '\n\t';
     }
+    console.log(value);
     _log += value;
 }
