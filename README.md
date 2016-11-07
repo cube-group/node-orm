@@ -142,3 +142,12 @@ SQL:insert into list (a,b) values (1,2);
 DB.model('list').where('a="hello"').insert({'a':1,'b':'2'},callback);
 SQL:INSERT INTO list (a,b) SELECT 1,2 FROM VISUAL WHERE NOT EXISTS (SELECT * FROM list WHERE name="hello");
 ```
+
+* insert as a task
+```javascript
+DB.model('list').task().insert({'a':1,'b':'2'},callback);
+SQL:
+BEGIN;
+INSERT INTO list (a,b) VALUES (1,2);
+COMMIT;
+```
