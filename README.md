@@ -49,7 +49,6 @@ DB.model('user').task().insert({'username':'"lin"',phone:123},function(err,rows)
 ## result
 * select return rows
 ```javascript
-ceshi_user
 [ RowDataPacket { id: 5, username: 'lin', password: '', phone: '555' },
   RowDataPacket { id: 6, username: 'l', password: '', phone: null },
   RowDataPacket { id: 12, username: 'lin1', password: '', phone: null },
