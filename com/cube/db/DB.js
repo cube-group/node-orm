@@ -6,50 +6,69 @@
  */
 var mysql = require('mysql');
 
+/**
+ * db config.
+ * @type {{host: string, port: number, user: string, password: string, db: string, prefix: string, table: string}}
+ * @private
+ */
 var _options = {
-    'host':'127.0.0.1',
-    'port':3306,
-    'user':'root',
-    'password':'',
-    'db':'system',
-    'prefix':'cube_',
-    'table':''
+    'host': '127.0.0.1',
+    'port': 3306,
+    'user': 'root',
+    'password': '',
+    'db': 'system',
+    'prefix': 'cube_',
 };
+
+/**
+ * mysql connect instance.
+ * @type {null}
+ * @private
+ */
 var _connect = null;
 
+/**
+ * log storage.
+ * @type {string}
+ * @private
+ */
+var _log = '';
 
+/**
+ * core class instance.
+ * @type {{init: Function, model: Function, query: Function, close: Function, log: Function}}
+ */
 var DB = {
     /**
      * database config.
-     * array(
-     *  'type'=>'mysql',
-     *  'host'=>'127.0.0.1',
-     *  'port'=>3306,
-     *  'user'=>'root',
-     *  'password'=>'',
-     *  'db'=>'system',
-     *  'prefix'=>'db prefix such as google_x_'
-     * )
+     * {
+     *  'type':'mysql',
+     *  'host':'127.0.0.1',
+     *  'port':3306,
+     *  'user:'root',
+     *  'password':'',
+     *  'db':'system',
+     *  'prefix':'db prefix such as google_x_'
+     * }
      *
      * @var
      */
-    init:function(value){
+    init: function (value) {
         _options = value;
     },
 
     /**
      * create db orm instance.
-     * DB::model('list');
+     * DB.model('list');
      *
-     * @param $name database list name
+     * @param tableName database list name
      * @return DBModel
      */
-    model:function(name) {
+    model: function (tableName) {
         if (!_options) {
             throw new Error('No db options.');
         }
-        _options['table'] = name;
-        return new DBModel();
+        return new DBModel(_options['prefix'] + tableName);
     },
 
     /**
@@ -60,49 +79,97 @@ var DB = {
      * @param $task run as the task mode(default value : false)
      * @return array data collection
      */
-    query:function(sql, task,callback) {
-        if(_connect){
-            _connect.query(sql,function(err,rows,fields){
-                if(err){
+    query: function (sql, task, callback) {
+        if (_connect) {
+            log(sql + ' task: ' + task);
+            if (task) {
+                _connect.query('BEGIN;', function (err) {
+                    if (err) {
+                        callback(err);
+                        return;
+                    }
+                    onQuery();
+                });
+            } else {
+                onQuery();
+            }
+
+            function onRollBack(err) {
+                _connect.query('ROLLBACK;', function () {
                     callback(err);
-                    return;
-                }
-                callback(null,rows,fields);
-            });
+                });
+            }
+
+            function onCommit(rows) {
+                _connect.query('COMMIT;', function (err) {
+                    if (err) {
+                        callback(err);
+                        return;
+                    }
+                    callback(null, rows);
+                });
+            }
+
+            function onQuery() {
+                _connect.query(sql, function (err, rows) {
+                    if (err) {
+                        if (task) {
+                            onRollBack(err);
+                        } else {
+                            callback(err);
+                        }
+                        return;
+                    }
+                    if (task) {
+                        onCommit(rows);
+                    } else {
+                        callback(null, rows);
+                    }
+                });
+            }
+
+        } else {
+            callback('connect is null');
         }
-        callback('connect is null');
     },
 
     /**
      * Close the orm instance.
      * @return bool
      */
-    close:function() {
-        if(_connect){
+    close: function () {
+        if (_connect) {
             _connect.close();
         }
         return true;
-    }
-}
+    },
 
+    /**
+     * get the orm log.
+     * @returns {string}
+     */
+    log: function () {
+        if (_log) {
+            var temporaryLogs = _log;
+            _log = '';
+            return temporaryLogs;
+        }
+        return '';
+    }
+};
+module.exports = DB;
 
 /**
  * Class DBModel.
  * sql orm model unit.
  * @package com\cube\db
  */
-function DBModel(tableName)
-{
+function DBModel(tableName) {
     /**
      * the state of support task.
      * @var bool
      */
     var _task = false;
-    /**
-     * the name of the table.
-     * @var string
-     */
-    var _table_name = '';
     /**
      * sql where string.
      * @var string
@@ -124,6 +191,8 @@ function DBModel(tableName)
      */
     var _limit = '';
 
+    console.log(tableName);
+
     /**
      * the orm action as the task.
      *
@@ -131,7 +200,7 @@ function DBModel(tableName)
      * SQL:insert into list (a) values (1);
      * @return mixed
      */
-    this.task = function() {
+    this.task = function () {
         _task = true;
         return this;
     }
@@ -145,9 +214,9 @@ function DBModel(tableName)
      * @param $options
      * @return $this
      */
-    this.where = function($options) {
-        if (!$options && $options!='') {
-           _where = $options;
+    this.where = function ($options) {
+        if ($options) {
+            _where = $options;
         }
         return this;
     }
@@ -164,8 +233,8 @@ function DBModel(tableName)
      * @param $options
      * @return $this
      */
-    this.order = function($options) {
-        if (!$options && $options!='') {
+    this.order = function ($options) {
+        if ($options) {
             if ($options instanceof Array) {
                 _order = $options.join(',');
             } else {
@@ -187,9 +256,8 @@ function DBModel(tableName)
      * @param $options
      * @return $this
      */
-    this.group = function($options)
-    {
-        if (!$options && $options!='') {
+    this.group = function ($options) {
+        if ($options) {
             if ($options instanceof Array) {
                 _group = $options.join(',');
             } else {
@@ -209,7 +277,7 @@ function DBModel(tableName)
      * @param $length
      * @return $this
      */
-    this.limit = function($start, $length) {
+    this.limit = function ($start, $length) {
         if ($start >= 0 && $length > 0) {
             _limit = $start + ',' + $length;
         }
@@ -227,21 +295,14 @@ function DBModel(tableName)
      *
      * @return array
      */
-    this.count = function(callback)
-    {
+    this.count = function (callback) {
         var sql = 'SELECT COUNT(*)';
-        sql += ' FROM ' . tableName;
-        if (!_where && _where!='') {
-            sql += ' WHERE ' . _where;
+        sql += ' FROM '.tableName;
+        if (_where) {
+            sql += ' WHERE '._where;
         }
         sql += ';';
-        getConnection(function(err){
-            if(err){
-                callback(err);
-                return;
-            }
-            DB.query(sql,_task,callback);
-        });
+        execConnectedQuery(sql, _task, callback);
     }
 
     /**
@@ -256,17 +317,18 @@ function DBModel(tableName)
      * @param $value
      * @return array|int
      */
-    this.sum = function(value,callback) {
-        if (empty($value)) {
-            return -1;
+    this.sum = function (value, callback) {
+        if (value) {
+            var sql = 'SELECT SUM(' + value + ')';
+            sql += ' FROM ' + tableName;
+            if (_where) {
+                sql += ' WHERE ' + _where;
+            }
+            sql += ';';
+            execConnectedQuery(sql, _task, callback);
+        } else {
+            callback('value is null');
         }
-        $sql = 'SELECT SUM(' . $value . ')';
-        $sql .= ' FROM ' . $this->_table_name;
-        if (!empty($this->_where)) {
-            $sql .= ' WHERE ' . $this->_where;
-        }
-        $sql .= ';';
-        return DB::query($sql, $this->_task);
     }
 
     /**
@@ -284,33 +346,32 @@ function DBModel(tableName)
      * @param null $options
      * @return array
      */
-    public function select($options = null)
-    {
-        $sql = 'SELECT ';
-        if (!empty($options)) {
-            if (is_array($options) && count($options) > 0) {
-                $sql .= join(',', $options);
+    this.select = function (options, callback) {
+        var sql = 'SELECT ';
+        if (options) {
+            if (options instanceof Array) {
+                sql += options.join(',');
             } else {
-                $sql .= $options;
+                sql += $options;
             }
         } else {
-            $sql .= '*';
+            sql += '*';
         }
-        $sql .= ' FROM ' . $this->_table_name;
-        if (!empty($this->_where)) {
-            $sql .= ' WHERE ' . $this->_where;
+        sql += ' FROM ' + tableName;
+        if (_where) {
+            sql += ' WHERE ' + _where;
         }
-        if (!empty($this->_group)) {
-            $sql .= ' GROUP BY ' . $this->_group;
+        if (_group) {
+            sql += ' GROUP BY ' + _group;
         }
-        if (!empty($this->_order)) {
-            $sql .= ' ORDER BY ' . $this->_group;
+        if (_order) {
+            sql += ' ORDER BY ' + _group;
         }
-        if (!empty($this->_limit)) {
-            $sql .= ' LIMIT ' . $this->_group;
+        if (_limit) {
+            sql += ' LIMIT ' + _group;
         }
-        $sql .= ';';
-        return DB::query($sql, $this->_task);
+        sql += ';';
+        execConnectedQuery(sql, _task, callback);
     }
 
     /**
@@ -322,23 +383,27 @@ function DBModel(tableName)
      * @param $options
      * @return int
      */
-    public function update($options)
-    {
-        $sql = 'UPDATE ' . $this->_table_name . ' SET ';
-        if (!empty($options) && is_array($options) && count($options) > 0) {
-            $sets = array();
-            foreach ($options as $key => $value) {
-                array_push($sets, $key . '=' . $value);
+    this.update = function (options, callback) {
+        if (options) {
+            var sql = 'UPDATE ' + tableName + ' SET ';
+            if (options instanceof Array) {
+                var sets = [];
+                for (var key in options) {
+                    sets.push(key + '=' + options[key]);
+                }
+                sql += sets.join(',');
             }
-            $sql .= join(',', $sets);
+            else {
+                return false;
+            }
+            if (_where) {
+                sql += ' WHERE ' + _where;
+            }
+            sql += ';';
+            execConnectedQuery(sql, _task, callback);
         } else {
-            return false;
+            callback('options is null');
         }
-        if (!empty($this->_where)) {
-            $sql .= ' WHERE ' . $this->_where;
-        }
-        $sql .= ';';
-        return DB::exec($sql, $this->_task);
     }
 
     /**
@@ -349,14 +414,13 @@ function DBModel(tableName)
      *
      * @return int
      */
-    public function delete()
-    {
-        $sql = 'DELETE FROM ' . $this->_table_name;
-        if (!empty($this->_where)) {
-            $sql .= ' WHERE ' . $this->_where;
-            $sql .= ';';
+    this.delete = function (callback) {
+        var sql = 'DELETE FROM ' + tableName;
+        if (_where) {
+            sql += ' WHERE ' + _where;
+            sql += ';';
         }
-        return DB::exec($sql, $this->_task);
+        execConnectedQuery(sql, _task, callback);
     }
 
     /**
@@ -371,72 +435,79 @@ function DBModel(tableName)
      * @param $options
      * @return int
      */
-    public function insert($options)
-    {
-        $sql = 'INSERT INTO ' . $this->_table_name;
-        if (!empty($options) && is_array($options) && count($options) > 0) {
-            $columns = array();
-            $values = array();
-            foreach ($options as $key => $value) {
-                array_push($columns, $key);
-                array_push($values, $value);
+    this.insert = function (options, callback) {
+        if (options) {
+            var sql = 'INSERT INTO ' + tableName;
+            var columns = [];
+            var values = [];
+            for (var key in options) {
+                columns.push(key);
+                values.push(options[key]);
             }
-            $sql .= ' (' . join(',', $columns) . ')';
+            sql += ' (' + columns.join(',') + ')';
 
-            if (!empty($this->_where)) {
-                $unique_key = explode('=', $this->_where)[0];
-                $sql .= ' SELECT (' . join(',', $values) . ') FROM DUAL WHERE NOT EXISTS(SELECT ';
-                $sql .= $unique_key . ' FROM ' . $this->_table_name . ' WHERE ' . $this->_where . ')';
+            if (_where) {
+                var unique_key = explode('=', _where)[0];
+                sql += ' SELECT (' + values.join(',') + ') FROM DUAL WHERE NOT EXISTS(SELECT ';
+                sql += unique_key + ' FROM ' + tableName + ' WHERE ' + _where + ')';
             } else {
-                $sql .= ' VALUES (' . join(',', $values) . ')';
+                sql += ' VALUES (' + values.join(',') + ')';
             }
-            $sql .= ';';
+            sql += ';';
+            execConnectedQuery(sql, _task, callback);
         } else {
-            return false;
+            callback('options is null');
         }
-        return DB::exec($sql, $this->_task);
     }
 }
 
-
-function getConnection(callback) {
-    if (!_connect) {
-        try {
+/**
+ * execute sql by the db-connected check.
+ *
+ * @param sql
+ * @param task
+ * @param callback
+ */
+function execConnectedQuery(sql, task, callback) {
+    if (_connect) {
+        DB.query(sql, task, callback);
+    } else {
+        if (_options) {
             var connect = mysql.createConnection({
-                host:_options['host'],
-                port:_options['port'],
-                user:_options['user'],
-                password:_options['password'],
-                database:_options['db'],
-                charset:'utf-8'
+                host: _options['host'],
+                port: _options['port'],
+                user: _options['user'],
+                password: _options['password'],
+                database: _options['db'],
+                charset: 'utf8'
             });
-            connect.connect(function(err){
-                if(err){
+            connect.connect(function (err) {
+                if (err) {
                     callback(err);
                     return;
                 }
                 _connect = connect;
-                callback(null);
+                DB.query(sql, task, callback);
             });
-        } catch (e) {
-            callback(e.getMessage());
+            connect.on('error', function () {
+                _connect = null;
+                callback(err);
+            });
+        } else {
+            callback('options is null');
         }
-    }else{
-        callback(null);
     }
 }
 
-final class Log
-{
-    private static $logs = '';
-
-    public static function mysql($value)
-    {
-        self::$logs .= $value . '\n\t';
+/**
+ * append log str.
+ *
+ * @param value
+ */
+function log(value) {
+    if (value) {
+        var date = new Date().toUTCString();
+        value = '[' + date + '] ' + value + '\n\t';
     }
-
-    public static function getLog()
-    {
-        return self::$logs;
-    }
+    _log += value;
 }
