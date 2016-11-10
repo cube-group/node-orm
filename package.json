@@ -1,0 +1,30 @@
+{
+  "name": "cube-group-node-orm",
+  "version": "1.0.0",
+  "description": "nodejs orm",
+  "main": "com/cube/db/DB.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "mysql": "^2.12.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cube-group/node-orm.git"
+  },
+  "keywords": [
+    "nodejs",
+    "orm"
+  ],
+  "author": "linyang",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cube-group/node-orm/issues"
+  },
+  "homepage": "https://github.com/cube-group/node-orm#readme"
+}
