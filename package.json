@@ -1,6 +1,6 @@
 {
   "name": "cube-group-node-orm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "nodejs orm",
   "main": "com/cube/db/DB.js",
   "directories": {

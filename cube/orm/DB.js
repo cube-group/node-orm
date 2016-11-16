@@ -7,8 +7,8 @@
 var mysql = require('mysql');
 
 /**
- * db config.
- * @type {{host: string, port: number, user: string, password: string, db: string, prefix: string, table: string}}
+ * orm config.
+ * @type {{host: string, port: number, user: string, password: string, orm: string, prefix: string, table: string}}
  * @private
  */
 var _options = {
@@ -47,8 +47,8 @@ var DB = {
      *  'port':3306,
      *  'user:'root',
      *  'password':'',
-     *  'db':'system',
-     *  'prefix':'db prefix such as google_x_'
+     *  'orm':'system',
+     *  'prefix':'orm prefix such as google_x_'
      * }
      *
      * @var
@@ -58,7 +58,7 @@ var DB = {
     },
 
     /**
-     * create db orm instance.
+     * create orm orm instance.
      * DB.model('list');
      *
      * @param tableName database list name
@@ -66,7 +66,7 @@ var DB = {
      */
     model: function (tableName) {
         if (!_options) {
-            throw new Error('No db options.');
+            throw new Error('No orm options.');
         }
         return new DBModel(_options['prefix'] + tableName);
     },
@@ -162,7 +162,7 @@ module.exports = DB;
 /**
  * Class DBModel.
  * sql orm model unit.
- * @package com\cube\db
+ * @package com\cube\orm
  */
 function DBModel(tableName) {
     /**
@@ -471,7 +471,7 @@ function DBModel(tableName) {
 }
 
 /**
- * execute sql by the db-connected check.
+ * execute sql by the orm-connected check.
  *
  * @param sql
  * @param task

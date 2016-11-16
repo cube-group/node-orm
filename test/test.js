@@ -7,7 +7,7 @@ var config = {
     'prefix': 'cube_'
 };
 
-var DB = require('../com/cube/db/DB.js');
+var DB = require('../cube/orm/DB.js');
 DB.init(config);
 
 ////insert as the task.
